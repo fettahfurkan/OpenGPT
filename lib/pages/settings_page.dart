@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import '../services/database_helper.dart';
 import '../services/openrouter_service.dart';
 import '../services/theme_service.dart';
+import '../services/voice_service.dart';
+import '../models/voice_settings.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive_utils.dart';
 
@@ -16,10 +18,12 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage>
     with TickerProviderStateMixin {
   final DatabaseHelper _dbHelper = DatabaseHelper();
+  final VoiceService _voiceService = VoiceService();
 
   List<Map<String, dynamic>> _apiKeys = [];
   List<Map<String, dynamic>> _models = [];
   bool _isLoading = true;
+  VoiceSettings _voiceSettings = const VoiceSettings();
 
   late AnimationController _fadeController;
   late AnimationController _slideController;
@@ -63,6 +67,12 @@ class _SettingsPageState extends State<SettingsPage>
     try {
       final apiKeys = await _dbHelper.getApiKeys();
       final models = await _dbHelper.getModels();
+      
+      // Ses servisi başlat
+      await _voiceService.initialize();
+      
+      // Ses ayarlarını yükle
+      _voiceSettings = _voiceService.voiceSettings;
 
       setState(() {
         _apiKeys = apiKeys;
@@ -358,6 +368,15 @@ class _SettingsPageState extends State<SettingsPage>
           child: Column(
             children: [
               _buildPasswordSection(context),
+              SizedBox(
+                height: ResponsiveUtils.getResponsiveValue(
+                  context,
+                  mobile: 24,
+                  tablet: 32,
+                  desktop: 40,
+                ),
+              ),
+              _buildVoiceSettingsSection(context),
               SizedBox(
                 height: ResponsiveUtils.getResponsiveValue(
                   context,
@@ -1519,6 +1538,412 @@ class _SettingsPageState extends State<SettingsPage>
       _showMessage('Şifre başarıyla değiştirildi.');
     } catch (e) {
       _showMessage('Şifre değiştirilirken hata: $e', isError: true);
+    }
+  }
+
+  Widget _buildVoiceSettingsSection(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: AppTheme.glassmorphism(context),
+      child: Card(
+        elevation: 0,
+        color: Colors.transparent,
+        child: Padding(
+          padding: ResponsiveUtils.getResponsivePadding(context),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.accentGradient,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.record_voice_over,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Ses Ayarları',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Sesli mesaj yazma ve okuma ayarları',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface.withOpacity(0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              
+              // TTS Açık/Kapalı
+              _buildVoiceToggle(
+                context,
+                title: 'Mesajları Sesle Oku',
+                subtitle: 'Gelen mesajları sesli olarak okur',
+                value: _voiceSettings.isTtsEnabled,
+                onChanged: (value) {
+                  _updateVoiceSettings(_voiceSettings.copyWith(isTtsEnabled: value));
+                },
+                icon: Icons.volume_up,
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Speech to Text Açık/Kapalı
+              _buildVoiceToggle(
+                context,
+                title: 'Sesle Mesaj Yaz',
+                subtitle: 'Mikrofon ile sesli mesaj yazabilirsiniz',
+                value: _voiceSettings.isSpeechToTextEnabled,
+                onChanged: (value) {
+                  _updateVoiceSettings(_voiceSettings.copyWith(isSpeechToTextEnabled: value));
+                },
+                icon: Icons.mic,
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Ses Cinsiyeti
+              _buildVoiceGenderSelector(context),
+              
+              const SizedBox(height: 24),
+              
+              // Konuşma Hızı
+              _buildVoiceSpeedSlider(context),
+              
+              const SizedBox(height: 24),
+              
+              // Ses Tonu
+              _buildVoicePitchSlider(context),
+              
+              const SizedBox(height: 24),
+              
+              // Test Butonu
+              _buildVoiceTestButton(context),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVoiceToggle(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required bool value,
+    required Function(bool) onChanged,
+    required IconData icon,
+  }) {
+    final theme = Theme.of(context);
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: value ? theme.colorScheme.primary : theme.colorScheme.onSurface.withOpacity(0.6),
+        ),
+        title: Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.7),
+          ),
+        ),
+        trailing: Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: theme.colorScheme.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVoiceGenderSelector(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Ses Cinsiyeti',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildGenderOption(
+                context,
+                title: 'Kadın Ses',
+                value: 'female',
+                isSelected: _voiceSettings.voiceGender == 'female',
+                icon: Icons.woman,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildGenderOption(
+                context,
+                title: 'Erkek Ses',
+                value: 'male',
+                isSelected: _voiceSettings.voiceGender == 'male',
+                icon: Icons.man,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGenderOption(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required bool isSelected,
+    required IconData icon,
+  }) {
+    final theme = Theme.of(context);
+    
+    return GestureDetector(
+      onTap: () {
+        _updateVoiceSettings(_voiceSettings.copyWith(voiceGender: value));
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected 
+            ? theme.colorScheme.primary.withOpacity(0.1)
+            : theme.colorScheme.surfaceVariant.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected 
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outline.withOpacity(0.2),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              color: isSelected 
+                ? theme.colorScheme.primary
+                : theme.colorScheme.onSurface.withOpacity(0.6),
+              size: 32,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isSelected 
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVoiceSpeedSlider(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Konuşma Hızı',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              '${(_voiceSettings.speechRate * 100).round()}%',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: theme.colorScheme.primary,
+            inactiveTrackColor: theme.colorScheme.outline.withOpacity(0.3),
+            thumbColor: theme.colorScheme.primary,
+            overlayColor: theme.colorScheme.primary.withOpacity(0.2),
+          ),
+          child: Slider(
+            value: _voiceSettings.speechRate,
+            min: 0.1,
+            max: 1.0,
+            divisions: 18,
+            onChanged: (value) {
+              _updateVoiceSettings(_voiceSettings.copyWith(speechRate: value));
+            },
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Yavaş',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            Text(
+              'Hızlı',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVoicePitchSlider(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Ses Tonu',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              '${(_voiceSettings.pitch * 100).round()}%',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: theme.colorScheme.primary,
+            inactiveTrackColor: theme.colorScheme.outline.withOpacity(0.3),
+            thumbColor: theme.colorScheme.primary,
+            overlayColor: theme.colorScheme.primary.withOpacity(0.2),
+          ),
+          child: Slider(
+            value: _voiceSettings.pitch,
+            min: 0.5,
+            max: 2.0,
+            divisions: 15,
+            onChanged: (value) {
+              _updateVoiceSettings(_voiceSettings.copyWith(pitch: value));
+            },
+          ),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Alçak',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+            Text(
+              'Yüksek',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVoiceTestButton(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _voiceSettings.isTtsEnabled ? () => _testVoice(context) : null,
+        icon: const Icon(Icons.play_arrow),
+        label: const Text('Ses Testi'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _updateVoiceSettings(VoiceSettings newSettings) async {
+    setState(() {
+      _voiceSettings = newSettings;
+    });
+    
+    await _voiceService.updateVoiceSettings(newSettings);
+  }
+
+  Future<void> _testVoice(BuildContext context) async {
+    const testText = 'Merhaba! Bu bir ses testi mesajıdır. Ses ayarlarınız bu şekilde çalışmaktadır.';
+    
+    try {
+      await _voiceService.speak(testText);
+      _showMessage('Ses testi başlatıldı.');
+    } catch (e) {
+      _showMessage('Ses testi başlatılırken hata: $e', isError: true);
     }
   }
 }

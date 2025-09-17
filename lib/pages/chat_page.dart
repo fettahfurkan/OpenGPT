@@ -9,6 +9,7 @@ import '../models/system_prompt.dart';
 import '../services/openrouter_service.dart';
 import '../services/database_helper.dart';
 import '../services/theme_service.dart';
+import '../services/voice_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive_utils.dart';
 import 'settings_page.dart';
@@ -43,9 +44,11 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
   Uint8List? _selectedImageBytes;
 
   final DatabaseHelper _dbHelper = DatabaseHelper();
+  final VoiceService _voiceService = VoiceService();
   late String _conversationId;
   Conversation? _currentConversation;
   SystemPrompt? _currentSystemPrompt;
+  bool _isListening = false;
 
   @override
   void initState() {
@@ -53,6 +56,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     _initializeAnimations();
     _initializeConversation();
     _setupMessageListener();
+    _initializeVoiceService();
   }
 
   void _initializeAnimations() {
@@ -150,6 +154,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     _messageFocus.dispose();
     _typingController.dispose();
     _fabController.dispose();
+    _voiceService.removeListener(_onVoiceServiceChanged);
     super.dispose();
   }
 
@@ -1021,7 +1026,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                           minLines: 1,
                           textCapitalization: TextCapitalization.sentences,
                           decoration: InputDecoration(
-                            hintText: 'Mesajınızı yazın...',
+                            hintText: _isListening ? 'Dinleniyor...' : 'Mesajınızı yazın...',
                             hintStyle: TextStyle(
                               color: theme.colorScheme.onSurface.withOpacity(0.6),
                             ),
@@ -1030,6 +1035,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                               horizontal: 20,
                               vertical: 16,
                             ),
+                            suffixIcon: _buildVoiceButtons(context),
                           ),
                           onSubmitted: (_) => _sendMessage(),
                         ),
@@ -1301,6 +1307,9 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
 
       // Add bot response to history
       _conversationHistory.add({'role': 'assistant', 'content': response});
+
+      // Bot mesajını sesle oku
+      _speakBotMessage(response);
 
       // Update conversation message count
       await _updateConversationMessageCount();
@@ -1633,4 +1642,133 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       return '${dateTime.day}/${dateTime.month} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
     }
   }
-}
+
+  // Ses servisi başlatma
+  Future<void> _initializeVoiceService() async {
+    try {
+      await _voiceService.initialize();
+      _voiceService.addListener(_onVoiceServiceChanged);
+    } catch (e) {
+      debugPrint('Ses servisi başlatılırken hata: $e');
+    }
+  }
+
+  void _onVoiceServiceChanged() {
+    if (mounted) {
+      setState(() {
+        _isListening = _voiceService.isListening;
+      });
+    }
+  }
+
+  // Ses butonları widget'ı
+  Widget _buildVoiceButtons(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // TTS durdurma butonu (sadece konuşma sırasında görünür)
+        if (_voiceService.isSpeaking)
+          IconButton(
+            onPressed: _stopSpeaking,
+            icon: Icon(
+              Icons.stop,
+              color: theme.colorScheme.error,
+            ),
+            tooltip: 'Konuşmayı Durdur',
+          ),
+        
+        // Mikrofon butonu
+        IconButton(
+          onPressed: _isListening ? _stopListening : _startListening,
+          icon: Icon(
+            _isListening ? Icons.mic : Icons.mic_none,
+            color: _isListening 
+              ? theme.colorScheme.error 
+              : theme.colorScheme.primary,
+          ),
+          tooltip: _isListening ? 'Dinlemeyi Durdur' : 'Sesle Mesaj Yaz',
+        ),
+      ],
+    );
+  }
+
+  // Sesli mesaj yazma başlat
+  Future<void> _startListening() async {
+    final hasPermission = await _voiceService.checkMicrophonePermission();
+    if (!hasPermission) {
+      _showSnackBar('Mikrofon izni gerekli', isError: true);
+      return;
+    }
+
+    try {
+      await _voiceService.startListening(
+        onResult: (text) {
+          if (text.isNotEmpty) {
+            _messageController.text = text;
+            _messageController.selection = TextSelection.fromPosition(
+              TextPosition(offset: text.length),
+            );
+          }
+        },
+        onPartialResult: (text) {
+          if (text.isNotEmpty) {
+            _messageController.text = text;
+            _messageController.selection = TextSelection.fromPosition(
+              TextPosition(offset: text.length),
+            );
+          }
+        },
+      );
+    } catch (e) {
+      _showSnackBar('Ses tanıma başlatılırken hata: $e', isError: true);
+    }
+  }
+
+  // Sesli mesaj yazma durdur
+  Future<void> _stopListening() async {
+    try {
+      await _voiceService.stopListening();
+    } catch (e) {
+      debugPrint('Ses tanıma durdurulurken hata: $e');
+    }
+  }
+
+  // Bot mesajını sesle oku
+  Future<void> _speakBotMessage(String message) async {
+    try {
+      await _voiceService.speak(message);
+    } catch (e) {
+      debugPrint('Mesaj okunurken hata: $e');
+    }
+  }
+
+  // Konuşmayı durdur
+  Future<void> _stopSpeaking() async {
+    try {
+      await _voiceService.stopSpeaking();
+    } catch (e) {
+      debugPrint('Konuşma durdurulurken hata: $e');
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    if (!mounted) return;
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError 
+          ? Theme.of(context).colorScheme.error
+          : Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+
+ }

@@ -37,7 +37,7 @@ class OpenRouterService {
     if (_cachedModel != null) return _cachedModel!;
 
     final activeModel = await _dbHelper.getActiveModel();
-    _cachedModel = activeModel?['apiModel'] ?? 'openai/gpt-oss-120b';
+    _cachedModel = activeModel?['apiModel'] ?? 'openrouter/sonoma-sky-alpha';
     return _cachedModel!;
   }
 

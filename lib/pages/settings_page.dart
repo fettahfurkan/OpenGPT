@@ -893,33 +893,37 @@ class _SettingsPageState extends State<SettingsPage>
                     children: [
                       Row(
                         children: [
-                          Text(
-                            model['name'],
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: isActive
-                                  ? theme.colorScheme.secondary
-                                  : null,
+                          Flexible(
+                            child: Text(
+                              model['name'],
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: isActive
+                                    ? theme.colorScheme.secondary
+                                    : null,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           if (isActive) ...[
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                                horizontal: 6,
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
                                 color: theme.colorScheme.secondary.withOpacity(
                                   0.2,
                                 ),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 'Aktif',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.secondary,
                                   fontWeight: FontWeight.w600,
+                                  fontSize: 11,
                                 ),
                               ),
                             ),

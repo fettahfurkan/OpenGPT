@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../theme/app_theme.dart';
-import '../services/theme_service.dart';
-import '../utils/responsive_utils.dart';
-import 'chat_page.dart';
 import '../services/database_helper.dart';
+import '../services/theme_service.dart';
+import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
+import '../utils/page_transitions.dart';
+import 'chat_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -109,31 +110,9 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       if (isPasswordCorrect) {
         HapticFeedback.lightImpact();
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            PageRouteBuilder(
-              pageBuilder: (context, animation, secondaryAnimation) =>
-                  const ChatPage(),
-              transitionsBuilder:
-                  (context, animation, secondaryAnimation, child) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position:
-                            Tween<Offset>(
-                              begin: const Offset(1.0, 0.0),
-                              end: Offset.zero,
-                            ).animate(
-                              CurvedAnimation(
-                                parent: animation,
-                                curve: Curves.easeOutCubic,
-                              ),
-                            ),
-                        child: child,
-                      ),
-                    );
-                  },
-              transitionDuration: const Duration(milliseconds: 600),
-            ),
+          Navigator.of(context).pushReplacementSmooth(
+            const ChatPage(),
+            type: PageTransitionType.fadeSlide,
           );
         }
       } else {

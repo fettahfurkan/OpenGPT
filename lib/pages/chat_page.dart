@@ -12,6 +12,8 @@ import '../services/theme_service.dart';
 import '../services/voice_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive_utils.dart';
+import '../utils/page_transitions.dart';
+import '../utils/animation_config.dart';
 import 'settings_page.dart';
 import 'conversation_history_page.dart';
 import 'system_prompt_settings_page.dart';
@@ -61,21 +63,25 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
 
   void _initializeAnimations() {
     _typingController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: AnimationConfig.extraSlowDuration,
       vsync: this,
     );
 
     _fabController = AnimationController(
-      duration: const Duration(milliseconds: 300),
+      duration: AnimationConfig.normalDuration,
       vsync: this,
     );
 
-    _typingAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _typingController, curve: Curves.easeInOut),
+    _typingAnimation = AnimationConfig.createFadeAnimation(
+      controller: _typingController,
+      curve: Curves.easeInOut,
     );
 
-    _fabAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fabController, curve: Curves.elasticOut),
+    _fabAnimation = AnimationConfig.createScaleAnimation(
+      controller: _fabController,
+      begin: 0.0,
+      end: 1.0,
+      curve: Curves.elasticOut,
     );
 
     _typingController.repeat(reverse: true);
@@ -1454,25 +1460,26 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
   }
 
   void _navigateToHistory() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const ConversationHistoryPage()),
+    Navigator.of(context).pushSmooth(
+      const ConversationHistoryPage(),
+      type: PageTransitionType.slideRight,
     );
   }
 
   void _navigateToSystemPrompts() {
     Navigator.of(context)
-        .push(
-          MaterialPageRoute(
-            builder: (context) => const SystemPromptSettingsPage(),
-          ),
+        .pushSmooth(
+          const SystemPromptSettingsPage(),
+          type: PageTransitionType.fadeSlide,
         )
         .then((_) => _reloadSystemPrompt());
   }
 
   void _navigateToSettings() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (context) => const SettingsPage()));
+    Navigator.of(context).pushSmooth(
+      const SettingsPage(),
+      type: PageTransitionType.modal,
+    );
   }
 
   Future<void> _reloadSystemPrompt() async {

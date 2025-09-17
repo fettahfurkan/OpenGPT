@@ -7,6 +7,7 @@ import '../services/voice_service.dart';
 import '../models/voice_settings.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive_utils.dart';
+import '../utils/animation_config.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -39,24 +40,25 @@ class _SettingsPageState extends State<SettingsPage>
 
   void _initializeAnimations() {
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 600),
+      duration: AnimationConfig.slowDuration,
       vsync: this,
     );
 
     _slideController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: AnimationConfig.extraSlowDuration,
       vsync: this,
     );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
+    _fadeAnimation = AnimationConfig.createFadeAnimation(
+      controller: _fadeController,
+      curve: Curves.easeOut,
+    );
 
-    _slideAnimation =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
-        );
+    _slideAnimation = AnimationConfig.createSlideAnimation(
+      controller: _slideController,
+      begin: const Offset(0, 0.3),
+      curve: AnimationConfig.defaultCurve,
+    );
   }
 
   Future<void> _loadData() async {

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/conversation.dart';
 import '../services/database_helper.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive_utils.dart';
 import '../services/theme_service.dart';
+import '../utils/page_transitions.dart';
 import 'chat_page.dart';
 
 class ConversationHistoryPage extends StatefulWidget {
@@ -935,11 +937,9 @@ class _ConversationHistoryPageState extends State<ConversationHistoryPage>
         await _dbHelper.insertConversation(newConversation);
 
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) =>
-                  ChatPage(conversationId: newConversation.id),
-            ),
+          Navigator.of(context).pushReplacementSmooth(
+            ChatPage(conversationId: newConversation.id),
+            type: PageTransitionType.slideLeft,
           );
         }
       } catch (e) {
@@ -956,10 +956,9 @@ class _ConversationHistoryPageState extends State<ConversationHistoryPage>
   }
 
   void _openConversation(Conversation conversation) {
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (context) => ChatPage(conversationId: conversation.id),
-      ),
+    Navigator.of(context).pushReplacementSmooth(
+      ChatPage(conversationId: conversation.id),
+      type: PageTransitionType.slideLeft,
     );
   }
 

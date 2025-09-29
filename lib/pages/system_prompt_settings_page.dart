@@ -139,9 +139,7 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
         _buildAppBar(context),
         _buildSearchBar(context),
         Expanded(
-          child: SingleChildScrollView(
-            child: _buildPromptsList(context),
-          ),
+          child: SingleChildScrollView(child: _buildPromptsList(context)),
         ),
       ],
     );
@@ -192,9 +190,7 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
               _buildAppBar(context),
               _buildSearchBar(context),
               Expanded(
-                child: SingleChildScrollView(
-                  child: _buildPromptsList(context),
-                ),
+                child: SingleChildScrollView(child: _buildPromptsList(context)),
               ),
             ],
           ),
@@ -433,8 +429,13 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
                 const SizedBox(height: 8),
                 _buildStatItem(
                   context,
-                  'Özel Prompt',
-                  '${_systemPrompts.where((p) => !p.isDefault).length}',
+                  'Kullanıcı Prompt',
+                  '${_systemPrompts.where((p) => !p.isSystemPrompt && !p.isDefault).length}',
+                ),
+                _buildStatItem(
+                  context,
+                  'Sistem Prompt',
+                  '${_systemPrompts.where((p) => p.isSystemPrompt).length}',
                 ),
               ],
             ),
@@ -623,7 +624,9 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
               )
             : AppTheme.glassmorphism(context),
         child: InkWell(
-          onTap: () => _viewSystemPrompt(systemPrompt),
+          onTap: systemPrompt.isSystemPrompt
+              ? null
+              : () => _viewSystemPrompt(systemPrompt),
           borderRadius: BorderRadius.circular(20),
           child: Padding(
             padding: const EdgeInsets.all(8),
@@ -646,6 +649,26 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
                             ),
                           ),
                           const SizedBox(width: 8),
+                          if (systemPrompt.isSystemPrompt)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.secondary.withOpacity(
+                                  0.2,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Sistem',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.secondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                           if (systemPrompt.isDefault)
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -693,14 +716,15 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
                       onSelected: (value) =>
                           _handlePromptAction(value, systemPrompt),
                       itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'view',
-                          child: ListTile(
-                            leading: Icon(Icons.visibility),
-                            title: Text('Görüntüle'),
-                            contentPadding: EdgeInsets.zero,
+                        if (!systemPrompt.isSystemPrompt)
+                          const PopupMenuItem(
+                            value: 'view',
+                            child: ListTile(
+                              leading: Icon(Icons.visibility),
+                              title: Text('Görüntüle'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
                           ),
-                        ),
                         if (!isActive)
                           const PopupMenuItem(
                             value: 'activate',
@@ -710,15 +734,17 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
                               contentPadding: EdgeInsets.zero,
                             ),
                           ),
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: ListTile(
-                            leading: Icon(Icons.edit),
-                            title: Text('Düzenle'),
-                            contentPadding: EdgeInsets.zero,
+                        if (!systemPrompt.isSystemPrompt)
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: ListTile(
+                              leading: Icon(Icons.edit),
+                              title: Text('Düzenle'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
                           ),
-                        ),
-                        if (!systemPrompt.isDefault)
+                        if (!systemPrompt.isDefault &&
+                            !systemPrompt.isSystemPrompt)
                           const PopupMenuItem(
                             value: 'delete',
                             child: ListTile(
@@ -833,9 +859,27 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
         _setActiveSystemPrompt(systemPrompt);
         break;
       case 'edit':
+        if (systemPrompt.isSystemPrompt) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Sistem prompt\'ları düzenlenemez'),
+              backgroundColor: Theme.of(context).colorScheme.secondary,
+            ),
+          );
+          return;
+        }
         _editSystemPrompt(systemPrompt);
         break;
       case 'delete':
+        if (systemPrompt.isSystemPrompt) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Sistem prompt\'ları silinemez'),
+              backgroundColor: Theme.of(context).colorScheme.secondary,
+            ),
+          );
+          return;
+        }
         _showDeleteConfirmation(systemPrompt);
         break;
     }
@@ -853,14 +897,77 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
             ),
             const SizedBox(width: 12),
             Expanded(child: Text(systemPrompt.name)),
+            if (systemPrompt.isSystemPrompt)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.secondary.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Sistem',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.secondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Text(
-            systemPrompt.content,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
-          ),
-        ),
+        content: systemPrompt.isSystemPrompt
+            ? SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.secondary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.secondary.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.lock,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Bu sistem prompt\'u korunmuştur ve içeriği görüntülenemez.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.secondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : SingleChildScrollView(
+                child: Text(
+                  systemPrompt.content,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge?.copyWith(height: 1.5),
+                ),
+              ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -880,6 +987,16 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
   }
 
   void _editSystemPrompt(SystemPrompt systemPrompt) {
+    if (systemPrompt.isSystemPrompt) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Sistem prompt\'ları düzenlenemez'),
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+        ),
+      );
+      return;
+    }
+
     final nameController = TextEditingController(text: systemPrompt.name);
     final contentController = TextEditingController(text: systemPrompt.content);
 
@@ -941,6 +1058,16 @@ class _SystemPromptSettingsPageState extends State<SystemPromptSettingsPage>
   }
 
   void _showDeleteConfirmation(SystemPrompt systemPrompt) {
+    if (systemPrompt.isSystemPrompt) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Sistem prompt\'ları silinemez'),
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(

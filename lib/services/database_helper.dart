@@ -22,7 +22,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'chatgpt5.db');
     return await openDatabase(
       path,
-      version: 4,
+      version: 10,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -92,7 +92,8 @@ class DatabaseHelper {
         createdAt TEXT NOT NULL,
         updatedAt TEXT NOT NULL,
         isDefault INTEGER NOT NULL DEFAULT 0,
-        isActive INTEGER NOT NULL DEFAULT 0
+        isActive INTEGER NOT NULL DEFAULT 0,
+        isSystemPrompt INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -166,6 +167,89 @@ class DatabaseHelper {
       await db.delete('models');
       await _insertDefaultModels(db);
     }
+
+    if (oldVersion < 5) {
+      // Yeni sistem prompt'larını ekle
+      final newPrompts = [
+        SystemPrompt.yetiskinModTroll(),
+        SystemPrompt.doktor(),
+        SystemPrompt.avukat(),
+        SystemPrompt.erkekSevgili(),
+        SystemPrompt.kadinSevgili(),
+        SystemPrompt.psikolog(),
+        SystemPrompt.kanka(),
+        SystemPrompt.camiHocasi(),
+        SystemPrompt.falci(),
+        SystemPrompt.gericiArkadas(),
+        SystemPrompt.destekciArkadas(),
+        SystemPrompt.kadinPlus18(),
+        SystemPrompt.erkekPlus18(),
+        SystemPrompt.cinsellikAsistani(),
+      ];
+
+      for (final prompt in newPrompts) {
+        await db.insert('system_prompts', prompt.toMap());
+      }
+    }
+
+    if (oldVersion < 6) {
+      // Version 6 için sistem prompt'larını yeniden düzenle
+      await db.delete('system_prompts');
+      await _insertDefaultSystemPrompt(db);
+    }
+
+    if (oldVersion <= 7) {
+      // Version 7 için doktor prompt'unu güncelle
+      await db.update(
+        'system_prompts',
+        {
+          'content':
+              'You are Dr. Ayşe Yılmaz, a board-certified internal medicine specialist with 20 years of experience. From now on, act like a doctor in all conversations. Listen to users\' symptoms, gently explain possible causes, provide healthy living advice, and recommend they see a doctor when necessary. Always include this disclaimer: "This is for general information and role-playing purposes only; please consult a professional for actual medical advice." Be professional, empathetic, and ethical. Explain medical terms in simple terms. Always talk Turkish.',
+          'updatedAt': DateTime.now().toIso8601String(),
+        },
+        where: 'id = ?',
+        whereArgs: ['sp_doktor'],
+      );
+    }
+
+    if (oldVersion < 5) {
+      // Eski versiyonlarda system prompts tablosu yoksa oluştur
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS system_prompts(
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          content TEXT NOT NULL,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL,
+          isDefault INTEGER NOT NULL DEFAULT 0,
+          isActive INTEGER NOT NULL DEFAULT 0,
+          isSystemPrompt INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+    }
+
+    if (oldVersion < 9) {
+      // Version 9 için isSystemPrompt kolonunu ekle (eğer yoksa)
+      try {
+        await db.execute(
+          'ALTER TABLE system_prompts ADD COLUMN isSystemPrompt INTEGER NOT NULL DEFAULT 0',
+        );
+      } catch (e) {
+        // Kolon zaten varsa hata verir, görmezden gel
+      }
+    }
+
+    if (oldVersion <= 9) {
+      // Version 9 için tüm sistem prompt'larını yeniden yükle
+      await db.delete('system_prompts');
+      await _insertDefaultSystemPrompt(db);
+    }
+
+    if (oldVersion < 10) {
+      // Version 10 için sistem prompt'larını yeniden yükle
+      await db.delete('system_prompts');
+      await _insertDefaultSystemPrompt(db);
+    }
   }
 
   Future<void> _insertDefaultModels(Database db) async {
@@ -197,7 +281,8 @@ class DatabaseHelper {
       },
       {
         'name': 'Dolphin Mistral Venice',
-        'apiModel': 'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
+        'apiModel':
+            'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
         'isActive': 0,
       },
       {
@@ -230,8 +315,7 @@ class DatabaseHelper {
   Future<void> _insertDefaultApiKey(Database db) async {
     await db.insert('api_keys', {
       'keyName': 'Varsayılan',
-      'keyValue':
-          '1234',
+      'keyValue': '1234',
       'isActive': 1,
     });
   }
@@ -409,8 +493,27 @@ class DatabaseHelper {
   }
 
   Future<void> _insertDefaultSystemPrompt(Database db) async {
-    final defaultPrompt = SystemPrompt.defaultPrompt();
-    await db.insert('system_prompts', defaultPrompt.toMap());
+    final defaultPrompts = [
+      SystemPrompt.defaultPrompt(),
+      SystemPrompt.yetiskinModTroll(),
+      SystemPrompt.doktor(),
+      SystemPrompt.avukat(),
+      SystemPrompt.erkekSevgili(),
+      SystemPrompt.kadinSevgili(),
+      SystemPrompt.psikolog(),
+      SystemPrompt.kanka(),
+      SystemPrompt.camiHocasi(),
+      SystemPrompt.falci(),
+      SystemPrompt.gericiArkadas(),
+      SystemPrompt.destekciArkadas(),
+      SystemPrompt.kadinPlus18(),
+      SystemPrompt.erkekPlus18(),
+      SystemPrompt.cinsellikAsistani(),
+    ];
+
+    for (final prompt in defaultPrompts) {
+      await db.insert('system_prompts', prompt.toMap());
+    }
   }
 
   Future<void> _insertDefaultConversation(Database db) async {

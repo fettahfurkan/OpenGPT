@@ -7,7 +7,7 @@ class VoiceSettings {
   final String language;
 
   const VoiceSettings({
-    this.isTtsEnabled = true,
+    this.isTtsEnabled = false,
     this.isSpeechToTextEnabled = true,
     this.voiceGender = 'female',
     this.speechRate = 0.5,
@@ -25,7 +25,8 @@ class VoiceSettings {
   }) {
     return VoiceSettings(
       isTtsEnabled: isTtsEnabled ?? this.isTtsEnabled,
-      isSpeechToTextEnabled: isSpeechToTextEnabled ?? this.isSpeechToTextEnabled,
+      isSpeechToTextEnabled:
+          isSpeechToTextEnabled ?? this.isSpeechToTextEnabled,
       voiceGender: voiceGender ?? this.voiceGender,
       speechRate: speechRate ?? this.speechRate,
       pitch: pitch ?? this.pitch,
@@ -46,7 +47,7 @@ class VoiceSettings {
 
   factory VoiceSettings.fromJson(Map<String, dynamic> json) {
     return VoiceSettings(
-      isTtsEnabled: json['isTtsEnabled'] ?? true,
+      isTtsEnabled: json['isTtsEnabled'] ?? false,
       isSpeechToTextEnabled: json['isSpeechToTextEnabled'] ?? true,
       voiceGender: json['voiceGender'] ?? 'female',
       speechRate: json['speechRate']?.toDouble() ?? 0.5,

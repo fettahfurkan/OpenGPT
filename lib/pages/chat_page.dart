@@ -803,8 +803,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     return Container(
       margin: EdgeInsets.only(
         bottom: isLastMessage ? 24 : 16,
-        left: isUser ? 64 : 0,
-        right: isUser ? 0 : 64,
+        left: isUser ? 32 : 0,
+        right: isUser ? 0 : 32,
       ),
       child: Row(
         mainAxisAlignment: isUser
@@ -873,7 +873,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                           color: isUser
                               ? Colors.white
                               : theme.colorScheme.onSurface,
-                          height: 1.4,
+                          height: 1.8,
                         ),
                       ),
 

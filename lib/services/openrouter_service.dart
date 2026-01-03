@@ -37,7 +37,7 @@ class OpenRouterService {
     if (_cachedModel != null) return _cachedModel!;
 
     final activeModel = await _dbHelper.getActiveModel();
-    _cachedModel = activeModel?['apiModel'] ?? 'openrouter/sonoma-sky-alpha';
+    _cachedModel = activeModel?['apiModel'] ?? 'x-ai/grok-4.1-fast:free';
     return _cachedModel!;
   }
 

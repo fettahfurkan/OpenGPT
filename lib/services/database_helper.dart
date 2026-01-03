@@ -22,7 +22,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'chatgpt5.db');
     return await openDatabase(
       path,
-      version: 10,
+      version: 11,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -250,59 +250,76 @@ class DatabaseHelper {
       await db.delete('system_prompts');
       await _insertDefaultSystemPrompt(db);
     }
+
+    if (oldVersion < 11) {
+      await db.delete('models');
+      await _insertDefaultModels(db);
+
+      // Aktif API anahtarını yeni varsayılan değere güncelle veya ekle
+      try {
+        final activeKeys = await db.query(
+          'api_keys',
+          where: 'isActive = ?',
+          whereArgs: [1],
+          limit: 1,
+        );
+        if (activeKeys.isNotEmpty) {
+          final id = activeKeys.first['id'] as int;
+          await db.update(
+            'api_keys',
+            {
+              'keyName': activeKeys.first['keyName'] as String? ?? 'Varsayılan',
+              'keyValue':
+                  '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',
+              'isActive': 1,
+            },
+            where: 'id = ?',
+            whereArgs: [id],
+          );
+        } else {
+          await _insertDefaultApiKey(db);
+        }
+      } catch (_) {
+        await _insertDefaultApiKey(db);
+      }
+    }
   }
 
   Future<void> _insertDefaultModels(Database db) async {
     final defaultModels = [
       {
-        'name': 'Sonoma Dusk Alpha',
-        'apiModel': 'openrouter/sonoma-dusk-alpha',
+        'name': 'Grok 4.1 Fast',
+        'apiModel': 'x-ai/grok-4.1-fast',
         'isActive': 0,
       },
       {
-        'name': 'Sonoma Sky Alpha',
-        'apiModel': 'openrouter/sonoma-sky-alpha',
+        'name': 'Grok 4.1 Fast Free',
+        'apiModel': 'x-ai/grok-4.1-fast:free',
         'isActive': 1,
       },
       {
-        'name': 'Deepseek Chat V3.1',
-        'apiModel': 'deepseek/deepseek-chat-v3.1:free',
+        'name': 'KAT Coder Pro Free',
+        'apiModel': 'kwaipilot/kat-coder-pro:free',
         'isActive': 0,
       },
       {
-        'name': 'Nemotron Nano 9B',
-        'apiModel': 'nvidia/nemotron-nano-9b-v2:free',
+        'name': 'Nemotron Nano 12B v2 VL Free',
+        'apiModel': 'nvidia/nemotron-nano-12b-v2-vl:free',
         'isActive': 0,
       },
       {
-        'name': 'GPT OSS 120B',
-        'apiModel': 'openai/gpt-oss-120b:free',
+        'name': 'GPT OSS 20B Free',
+        'apiModel': 'openai/gpt-oss-20b:free',
         'isActive': 0,
       },
       {
-        'name': 'Dolphin Mistral Venice',
-        'apiModel':
-            'cognitivecomputations/dolphin-mistral-24b-venice-edition:free',
+        'name': 'GLM 4.5 Air Free',
+        'apiModel': 'z-ai/glm-4.5-air:free',
         'isActive': 0,
       },
       {
-        'name': 'Gemini 2.5 Flash Lite',
-        'apiModel': 'google/gemini-2.5-flash-lite',
-        'isActive': 0,
-      },
-      {
-        'name': 'Gemini 2.0 Flash',
-        'apiModel': 'google/gemini-2.0-flash-001',
-        'isActive': 0,
-      },
-      {
-        'name': 'Gemini 2.5 Flash',
-        'apiModel': 'google/gemini-2.5-flash',
-        'isActive': 0,
-      },
-      {
-        'name': 'Anubis 70B',
-        'apiModel': 'thedrummer/anubis-70b-v1.1',
+        'name': 'Gemma 3n e2b IT Free',
+        'apiModel': 'google/gemma-3n-e2b-it:free',
         'isActive': 0,
       },
     ];
@@ -315,7 +332,7 @@ class DatabaseHelper {
   Future<void> _insertDefaultApiKey(Database db) async {
     await db.insert('api_keys', {
       'keyName': 'Varsayılan',
-      'keyValue': '1234',
+      'keyValue': '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',
       'isActive': 1,
     });
   }
